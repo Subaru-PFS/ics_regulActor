@@ -17,8 +17,8 @@ class RegulCmd(object):
         self.vocab = [
             ('ping', '', self.ping),
             ('status', '', self.status),
-            ('start', '<setpoint> [<period>] [kp]', self.startLoop),
-            ('stop', '', self.stopLoop),
+            ('start', '@(r0|r1) <setpoint> [<period>] [kp]', self.startLoop),
+            ('stop', '@(r0|r1)', self.stopLoop),
 
         ]
 
@@ -36,7 +36,7 @@ class RegulCmd(object):
     def status(self, cmd):
         """Report status and version; obtain and send current data"""
 
-        cmd.inform('text="Present!"')
+        self.actor.status(cmd)
         cmd.finish()
 
     def startLoop(self, cmd):
@@ -52,9 +52,22 @@ class RegulCmd(object):
         if not 0.5 <= kp < 5:
             raise Exception("valueError 0.5 <= kp < 5")
 
-        self.actor.startLoop(setpoint, period, kp)
-        cmd.finish("text='Detector temperature control loop On'")
+        if "r0" in cmdKeys:
+            xcu = "xcu_r0"
+        elif "r1" in cmdKeys:
+            xcu = "xcu_r1"
+        else:
+            xcu = None
+        self.actor.startLoop(xcu, setpoint, period, kp)
+        cmd.finish("text='Detector %s temperature control loop On'" % xcu)
 
     def stopLoop(self, cmd):
-        self.actor.stopLoop()
-        cmd.finish("text='Detector temperature control loop Off'")
+        cmdKeys = cmd.cmd.keywords
+        if "r0" in cmdKeys:
+            xcu = "xcu_r0"
+        elif "r1" in cmdKeys:
+            xcu = "xcu_r1"
+        else:
+            xcu = None
+        self.actor.stopLoop(xcu)
+        cmd.finish("text='Detector %s temperature control loop Off'" % xcu)
