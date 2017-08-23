@@ -51,7 +51,7 @@ class TempLoop(QThread):
         offset = 50000 - date2num(dt(1995, 10, 10))
         return (date2num(dt.now()) + offset) * 86400
 
-    def getData(self, tableName, keyword, nb_sec=1800, method=np.mean):
+    def getData(self, tableName, keyword, nb_sec=900, method=np.mean):
         prop = "dbname='%s' user='pfs' host='%s' port='%i'" % ("archiver", "10.1.1.1", 5432)
         conn = psycopg2.connect(prop)
         database = conn.cursor()
