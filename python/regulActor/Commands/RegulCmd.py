@@ -45,12 +45,12 @@ class RegulCmd(object):
         period = cmdKeys['period'].values[0] if 'period' in cmdKeys else 600
         kp = cmdKeys['kp'].values[0] if 'kp' in cmdKeys else 1.
 
-        if not 140 <= setpoint < 160:
-            raise Exception("valueError 140 <= setpoint < 160")
+        if not 130 <= setpoint < 200:
+            raise Exception("valueError 130 <= setpoint < 200")
         if not 30 <= period < 7200:
             raise Exception("valueError 30 <= period < 7200")
-        if not 0.5 <= kp < 5:
-            raise Exception("valueError 0.5 <= kp < 5")
+        if not 0.2 <= kp < 5:
+            raise Exception("valueError 0.2 <= kp < 5")
 
         if "r0" in cmdKeys:
             xcu = "xcu_r0"
