@@ -17,7 +17,7 @@ class RegulCmd(object):
         self.vocab = [
             ('ping', '', self.ping),
             ('status', '', self.status),
-            ('start', '@(r0|r1) <setpoint> [<period>] [kp]', self.startLoop),
+            ('start', '@(r0|r1) <setpoint> [<period>] [<kp>]', self.startLoop),
             ('stop', '@(r0|r1)', self.stopLoop),
 
         ]
