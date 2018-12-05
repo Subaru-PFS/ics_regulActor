@@ -10,34 +10,31 @@ class RegulActor(Actor):
         #
         Actor.__init__(self, name,
                        productName=productName,
-                       configFile=configFile, modelNames=['xcu_r0',
-                                                          'xcu_r1',
-                                                          ])
+                       configFile=configFile, modelNames=['xcu_b1', 'xcu_r1'])
 
         self.threads = {}
 
-    def startLoop(self, xcu, setpoint, period, kp):
-        temploop = self.threads[xcu] if xcu in self.threads.iterkeys() else TempLoop(self, xcu)
+    def startLoop(self, xcuActor, setpoint, period, kp):
+        temploop = self.threads[xcuActor] if xcuActor in self.threads.keys() else TempLoop(self, xcuActor)
         temploop.startLoop(setpoint, period, kp)
-        self.threads[xcu] = temploop
+        self.threads[xcuActor] = temploop
 
-    def stopLoop(self, xcu):
-        temploop = self.threads[xcu] if xcu in self.threads.iterkeys() else TempLoop(self, xcu)
+    def stopLoop(self, xcuActor):
+        temploop = self.threads[xcuActor]
         temploop.stopLoop()
-        self.threads[xcu] = temploop
+        self.threads[xcuActor] = temploop
 
     def status(self, cmd):
-        for i, (xcu, looptemp) in enumerate(self.threads.iteritems()):
+        for i, (xcuActor, looptemp) in enumerate(self.threads.items()):
             cmd.inform('loopTemp%i=%s' % (i, looptemp.getStatus()))
 
     def safeCall(self, **kwargs):
-        cmd = self.bcast
         cmdVar = self.cmdr.call(**kwargs)
 
-        status = cmdVar.lastReply.canonical().split(" ", 4)[-1]
-
         if cmdVar.didFail:
-            cmd.warn(status)
+            reply = cmdVar.replyList[-1]
+            raise UserWarning("actor=%s %s" % (reply.header.actor,
+                                               reply.keywords.canonical(delimiter=';')))
 
 
 def main():

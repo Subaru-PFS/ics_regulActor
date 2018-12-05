@@ -17,8 +17,8 @@ class RegulCmd(object):
         self.vocab = [
             ('ping', '', self.ping),
             ('status', '', self.status),
-            ('start', '@(r0|r1) <setpoint> [<period>] [<kp>]', self.startLoop),
-            ('stop', '@(r0|r1)', self.stopLoop),
+            ('start', '<cam> <setpoint> [<period>] [<kp>]', self.startLoop),
+            ('stop', '<cam>', self.stopLoop),
 
         ]
 
@@ -27,6 +27,7 @@ class RegulCmd(object):
                                         keys.Key("setpoint", types.Float(), help="Detector temperature setpoint"),
                                         keys.Key("period", types.Float(), help="control loop period"),
                                         keys.Key("kp", types.Float(), help="control loop coefficient"),
+                                        keys.Key("cam", types.String(), help='single camera to regulate'),
                                         )
 
     def ping(self, cmd):
@@ -42,7 +43,7 @@ class RegulCmd(object):
     def startLoop(self, cmd):
         cmdKeys = cmd.cmd.keywords
         setpoint = cmdKeys['setpoint'].values[0]
-        period = cmdKeys['period'].values[0] if 'period' in cmdKeys else 600
+        period = cmdKeys['period'].values[0] if 'period' in cmdKeys else 3600
         kp = cmdKeys['kp'].values[0] if 'kp' in cmdKeys else 1.
 
         if not 130 <= setpoint < 200:
@@ -52,22 +53,17 @@ class RegulCmd(object):
         if not 0.2 <= kp < 5:
             raise Exception("valueError 0.2 <= kp < 5")
 
-        if "r0" in cmdKeys:
-            xcu = "xcu_r0"
-        elif "r1" in cmdKeys:
-            xcu = "xcu_r1"
-        else:
-            xcu = None
-        self.actor.startLoop(xcu, setpoint, period, kp)
-        cmd.finish("text='Detector %s temperature control loop On'" % xcu)
+        cam = cmdKeys['cam'].values[0]
+
+        self.actor.startLoop('xcu_%s' % cam, setpoint, period, kp)
+        self.actor.status(cmd)
+
+        cmd.finish("text='Detector %s temperature control loop On'" % cam)
 
     def stopLoop(self, cmd):
         cmdKeys = cmd.cmd.keywords
-        if "r0" in cmdKeys:
-            xcu = "xcu_r0"
-        elif "r1" in cmdKeys:
-            xcu = "xcu_r1"
-        else:
-            xcu = None
-        self.actor.stopLoop(xcu)
-        cmd.finish("text='Detector %s temperature control loop Off'" % xcu)
+        cam = cmdKeys['cam'].values[0]
+        self.actor.stopLoop('xcu_%s' % cam)
+        self.actor.status(cmd)
+
+        cmd.finish("text='Detector %s temperature control loop Off'" % cam)
