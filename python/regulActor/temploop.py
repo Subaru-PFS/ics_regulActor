@@ -8,8 +8,8 @@ from sps_engineering_Lib_dataQuery.dates import date2astro
 
 
 class TempLoop(QThread):
-    def __init__(self, actor, xcu):
-        QThread.__init__(self, actor, xcu)
+    def __init__(self, actor, xcuActor):
+        QThread.__init__(self, actor, xcuActor)
         self.setpoint = 151
         self.period = 3600
         self.kp = 1
