@@ -51,9 +51,7 @@ class TempLoop(QThread):
         tip = self.coolerTip()
         new_tip = tip + self.kp * (self.setpoint - detector)
 
-        print(dict(actor=self.name, cmdStr="cooler on setpoint=%.2f" % new_tip, timeLim=60))
-
-        #self.actor.safeCall(actor=self.name, cmdStr="cooler on setpoint=%.2f" % new_tip, timeLim=60)
+        self.actor.safeCall(actor=self.name, cmdStr="cooler on setpoint=%.2f" % new_tip, timeLim=60)
 
     def getStatus(self):
         return "%s,%s,%.2f,%.2f,%.2f,%.2f" % (self.name, self.loopOn, self.setpoint,
