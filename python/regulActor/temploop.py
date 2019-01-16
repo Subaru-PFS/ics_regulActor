@@ -22,6 +22,11 @@ class TempLoop(QThread):
     def elapsedTime(self):
         return time.time() - self.t0
 
+    @property
+    def cam(self):
+        __, cam = self.name.split('_')
+        return cam
+
     def startLoop(self, setpoint, period, kp):
         self.setpoint = setpoint
         self.period = period
@@ -42,25 +47,39 @@ class TempLoop(QThread):
 
     def regulate(self):
         self.t0 = time.time()
-        detector = self.getData("%s__temps" % self.name, "val1_0")
-        tip = self.getData("%s__coolertemps" % self.name, "tip")
+        detector = self.ccdTemps()
+        tip = self.coolerTip()
         new_tip = tip + self.kp * (self.setpoint - detector)
 
-        self.actor.safeCall(actor=self.name, cmdStr="cooler on setpoint=%.2f" % new_tip, timeLim=60)
+        print(dict(actor=self.name, cmdStr="cooler on setpoint=%.2f" % new_tip, timeLim=60))
+
+        #self.actor.safeCall(actor=self.name, cmdStr="cooler on setpoint=%.2f" % new_tip, timeLim=60)
 
     def getStatus(self):
         return "%s,%s,%.2f,%.2f,%.2f,%.2f" % (self.name, self.loopOn, self.setpoint,
                                               self.kp, self.period, self.elapsedTime)
 
-    def getData(self, table, col, nbSec=1800, method=np.median):
+    def ccdTemps(self, nbSec=1800, method=np.median):
+        df = self.getData('ccd_%s__ccdtemps' % self.cam, 'ccd0,ccd1', nbSec=nbSec)
+        df['ccd'] = (df['ccd0'] + df['ccd1']) / 2
+        return self.getOneValue(df, col='ccd', nbSec=nbSec, method=method)
+
+    def coolerTip(self, nbSec=1800, method=np.median):
+        df = self.getData("%s__coolertemps" % self.name, "tip", nbSec=nbSec)
+        return self.getOneValue(df, col='tip', nbSec=nbSec, method=method)
+
+    def getData(self, table, cols, nbSec):
         db = DatabaseManager('tron', 5432, '')
         db.init()
         tai = date2astro(dt.utcnow())
         where = 'WHERE (tai >= %f and tai < %f)' % (tai - nbSec, tai)
         order = 'order by raw_id asc'
-        df = db.pfsdata(table, col, where=where, order=order)
-        fdf = df.dropna().query('50<%s<300' % col)
         db.close()
+        return db.pfsdata(table, cols, where=where, order=order)
+
+    def getOneValue(self, df, col, nbSec, method):
+        fdf = df.dropna().query('50<%s<300' % col)
+
         if len(fdf) < (nbSec / 60):
             self.stopLoop()
             raise Exception("No Data")
