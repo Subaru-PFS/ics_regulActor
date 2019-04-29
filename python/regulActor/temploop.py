@@ -8,13 +8,13 @@ from sps_engineering_Lib_dataQuery.dates import date2astro
 
 
 class TempLoop(QThread):
-    def __init__(self, actor, xcuActor):
-        QThread.__init__(self, actor, xcuActor)
-        self.setpoint = 151
-        self.period = 3600
-        self.kp = 1
-        self.loopOn = False
-        self.t0 = time.time()
+    def __init__(self, actor, xcuActor, setpoint, period, kp):
+        QThread.__init__(self, actor, xcuActor, timeout=15.0)
+        self.setpoint = setpoint
+        self.period = period
+        self.kp = kp
+
+        self.t0 = 0
         self.handleTimeout = self.manageLoop
         self.start()
 
@@ -31,31 +31,36 @@ class TempLoop(QThread):
         self.setpoint = setpoint
         self.period = period
         self.kp = kp
-        self.loopOn = True
         self.regulate()
 
     def stopLoop(self):
-        self.loopOn = False
+        self.exitASAP = True
 
     def manageLoop(self):
         xcuKeys = self.actor.models[self.name]
         [setpoint, reject, tip, power] = xcuKeys.keyVarDict['coolerTemps'].getValue()
+
+        if self.exitASAP:
+            raise SystemExit()
+
         if power < 70:
             self.stopLoop()
-        if self.elapsedTime > self.period and self.loopOn:
+
+        if self.elapsedTime > self.period:
             self.regulate()
 
     def regulate(self):
-        self.t0 = time.time()
-        detector = self.ccdTemps()
-        tip = self.coolerTip()
-        new_tip = tip + self.kp * (self.setpoint - detector)
-
-        self.actor.safeCall(actor=self.name, cmdStr="cooler on setpoint=%.2f" % new_tip, timeLim=60)
+        try:
+            detector = self.detectorBox()
+            tip = self.coolerTip()
+            new_tip = tip + self.kp * (self.setpoint - detector)
+            self.actor.safeCall(actor=self.name, cmdStr="cooler on setpoint=%.2f" % new_tip, timeLim=60)
+            self.t0 = time.time()
+        except Exception as e:
+            self.actor.bcast.warn('text=%s' % self.actor.strTraceback(e))
 
     def getStatus(self):
-        return "%s,%s,%.2f,%.2f,%.2f,%.2f" % (self.name, self.loopOn, self.setpoint,
-                                              self.kp, self.period, self.elapsedTime)
+        return "%s,%.2f,%.2f,%.2f,%.2f" % (self.name, self.setpoint, self.kp, self.period, self.elapsedTime)
 
     def ccdTemps(self, nbSec=1800, method=np.median):
         df = self.getData('ccd_%s__ccdtemps' % self.cam, 'ccd0,ccd1', nbSec=nbSec)
@@ -65,6 +70,10 @@ class TempLoop(QThread):
     def coolerTip(self, nbSec=1800, method=np.median):
         df = self.getData("%s__coolertemps" % self.name, "tip", nbSec=nbSec)
         return self.getOneValue(df, col='tip', nbSec=nbSec, method=method)
+
+    def detectorBox(self, nbSec=1800, method=np.median):
+        df = self.getData("%s__temps" % self.name, "val1_0", nbSec=nbSec)
+        return self.getOneValue(df, col='val1_0', nbSec=nbSec, method=method)
 
     def getData(self, table, cols, nbSec):
         db = DatabaseManager('tron', 5432, '')
@@ -80,6 +89,6 @@ class TempLoop(QThread):
 
         if len(fdf) < (nbSec / 60):
             self.stopLoop()
-            raise Exception("No Data")
+            raise ValueError("No Data")
 
         return method(fdf[col])

@@ -16,14 +16,16 @@ class RegulActor(Actor):
         self.threads = {}
 
     def startLoop(self, xcuActor, setpoint, period, kp):
-        temploop = self.threads[xcuActor] if xcuActor in self.threads.keys() else TempLoop(self, xcuActor)
-        temploop.startLoop(setpoint, period, kp)
-        self.threads[xcuActor] = temploop
+        try:
+            self.threads[xcuActor].stopLoop()
+        except KeyError:
+            pass
+
+        self.threads[xcuActor] = TempLoop(self, xcuActor, setpoint, period, kp)
 
     def stopLoop(self, xcuActor):
-        temploop = self.threads[xcuActor]
-        temploop.stopLoop()
-        self.threads[xcuActor] = temploop
+        self.threads[xcuActor].stopLoop()
+        self.threads.pop(xcuActor, None)
 
     def status(self, cmd):
         for i, (xcuActor, looptemp) in enumerate(self.threads.items()):
