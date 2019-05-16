@@ -58,13 +58,13 @@ class TempLoop(QThread):
             detector = self.detectorBox()
             tip = self.coolerTip()
             new_tip = tip + self.kp * (self.setpoint - detector)
-            self.actor.safeCall(actor=self.name, cmdStr="cooler on setpoint=%.2f" % new_tip, timeLim=60)
+            self.actor.safeCall(actor=self.name, cmdStr='cooler on setpoint=%.2f' % new_tip, timeLim=60)
             self.t0 = time.time()
         except Exception as e:
             self.actor.bcast.warn('text=%s' % self.actor.strTraceback(e))
 
     def getStatus(self):
-        return "%s,%s,%.2f,%.2f,%.2f,%.2f" % (self.name, self.loopOn, self.setpoint,
+        return '%s,%s,%.2f,%.2f,%.2f,%.2f' % (self.name, self.loopOn, self.setpoint,
                                               self.kp, self.period, self.elapsedTime)
 
     def ccdTemps(self, nbSec=1800, method=np.median):
@@ -73,11 +73,11 @@ class TempLoop(QThread):
         return self.getOneValue(df, col='ccd', nbSec=nbSec, method=method)
 
     def coolerTip(self, nbSec=1800, method=np.median):
-        df = self.getData("%s__coolertemps" % self.name, "tip", nbSec=nbSec)
+        df = self.getData('%s__coolertemps' % self.name, 'tip', nbSec=nbSec)
         return self.getOneValue(df, col='tip', nbSec=nbSec, method=method)
 
     def detectorBox(self, nbSec=1800, method=np.median):
-        df = self.getData("%s__temps" % self.name, "val1_0", nbSec=nbSec)
+        df = self.getData('%s__temps' % self.name, 'val1_0', nbSec=nbSec)
         return self.getOneValue(df, col='val1_0', nbSec=nbSec, method=method)
 
     def getData(self, table, cols, nbSec):
@@ -94,6 +94,6 @@ class TempLoop(QThread):
 
         if len(fdf) < (nbSec / 60):
             self.stopLoop()
-            raise ValueError("No Data")
+            raise ValueError('No Data')
 
         return method(fdf[col])

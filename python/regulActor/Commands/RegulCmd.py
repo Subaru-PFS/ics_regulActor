@@ -23,16 +23,16 @@ class RegulCmd(object):
         ]
 
         # Define typed command arguments for the above commands.
-        self.keys = keys.KeysDictionary("regul_regul", (1, 1),
-                                        keys.Key("setpoint", types.Float(), help="Detector temperature setpoint"),
-                                        keys.Key("period", types.Float(), help="control loop period"),
-                                        keys.Key("kp", types.Float(), help="control loop coefficient"),
-                                        keys.Key("cam", types.String(), help='single camera to regulate'),
+        self.keys = keys.KeysDictionary('regul_regul', (1, 1),
+                                        keys.Key('setpoint', types.Float(), help='Detector temperature setpoint'),
+                                        keys.Key('period', types.Float(), help='control loop period'),
+                                        keys.Key('kp', types.Float(), help='control loop coefficient'),
+                                        keys.Key('cam', types.String(), help='single camera to regulate'),
                                         )
 
     def ping(self, cmd):
         """Query the actor for liveness/happiness."""
-        cmd.finish("text='Present and (probably) well'")
+        cmd.finish('text="Present and (probably) well"')
 
     def status(self, cmd):
         """Report status and version; obtain and send current data"""
@@ -47,18 +47,18 @@ class RegulCmd(object):
         kp = cmdKeys['kp'].values[0] if 'kp' in cmdKeys else 1.
 
         if not 130 <= setpoint < 200:
-            raise Exception("valueError 130 <= setpoint < 200")
-        if not 30 <= period < 7200:
-            raise Exception("valueError 30 <= period < 7200")
+            raise ValueError('130 <= setpoint < 200')
+        if not 1800 <= period < 7200:
+            raise ValueError('1800 <= period < 7200')
         if not 0.2 <= kp < 5:
-            raise Exception("valueError 0.2 <= kp < 5")
+            raise ValueError('0.2 <= kp < 5')
 
         cam = cmdKeys['cam'].values[0]
 
         self.actor.startLoop('xcu_%s' % cam, setpoint, period, kp)
         self.actor.status(cmd)
 
-        cmd.finish("text='Detector %s temperature control loop On'" % cam)
+        cmd.finish('text="Detector %s temperature control loop On"' % cam)
 
     def stopLoop(self, cmd):
         cmdKeys = cmd.cmd.keywords
@@ -66,4 +66,4 @@ class RegulCmd(object):
         self.actor.stopLoop('xcu_%s' % cam)
         self.actor.status(cmd)
 
-        cmd.finish("text='Detector %s temperature control loop Off'" % cam)
+        cmd.finish('text="Detector %s temperature control loop Off"' % cam)
