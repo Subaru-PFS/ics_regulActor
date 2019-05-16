@@ -19,6 +19,10 @@ class TempLoop(QThread):
         self.start()
 
     @property
+    def loopOn(self):
+        return not self.exitASAP
+
+    @property
     def elapsedTime(self):
         return time.time() - self.t0
 
@@ -40,11 +44,11 @@ class TempLoop(QThread):
         xcuKeys = self.actor.models[self.name]
         [setpoint, reject, tip, power] = xcuKeys.keyVarDict['coolerTemps'].getValue()
 
-        if self.exitASAP:
-            raise SystemExit()
-
         if power < 70:
             self.stopLoop()
+
+        if self.exitASAP:
+            raise SystemExit()
 
         if self.elapsedTime > self.period:
             self.regulate()
@@ -60,7 +64,8 @@ class TempLoop(QThread):
             self.actor.bcast.warn('text=%s' % self.actor.strTraceback(e))
 
     def getStatus(self):
-        return "%s,%.2f,%.2f,%.2f,%.2f" % (self.name, self.setpoint, self.kp, self.period, self.elapsedTime)
+        return "%s,%s,%.2f,%.2f,%.2f,%.2f" % (self.name, self.loopOn, self.setpoint,
+                                              self.kp, self.period, self.elapsedTime)
 
     def ccdTemps(self, nbSec=1800, method=np.median):
         df = self.getData('ccd_%s__ccdtemps' % self.cam, 'ccd0,ccd1', nbSec=nbSec)
