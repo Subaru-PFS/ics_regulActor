@@ -25,7 +25,7 @@ class RegulCmd(object):
         # Define typed command arguments for the above commands.
         self.keys = keys.KeysDictionary('regul_regul', (1, 1),
                                         keys.Key('setpoint', types.Float(), help='Detector temperature setpoint'),
-                                        keys.Key('period', types.Float(), help='control loop period'),
+                                        keys.Key('period', types.Float(), help='control loop period (hours)'),
                                         keys.Key('kp', types.Float(), help='control loop coefficient'),
                                         keys.Key('cam', types.String(), help='single camera to regulate'),
                                         )
@@ -36,26 +36,29 @@ class RegulCmd(object):
 
     def status(self, cmd):
         """Report status and version; obtain and send current data"""
-
+        self.actor.sendVersionKey(cmd)
         self.actor.status(cmd)
         cmd.finish()
 
     def startLoop(self, cmd):
+        spmin, spmax = 150, 170
+        pmin, pmax = 8, 12
+        kmin, kmax = 1, 2
         cmdKeys = cmd.cmd.keywords
         setpoint = cmdKeys['setpoint'].values[0]
-        period = cmdKeys['period'].values[0] if 'period' in cmdKeys else 3600
-        kp = cmdKeys['kp'].values[0] if 'kp' in cmdKeys else 1.
+        period = cmdKeys['period'].values[0] if 'period' in cmdKeys else 8
+        kp = cmdKeys['kp'].values[0] if 'kp' in cmdKeys else 1.1
 
-        if not 130 <= setpoint < 200:
-            raise ValueError('130 <= setpoint < 200')
-        if not 1800 <= period < 7200:
-            raise ValueError('1800 <= period < 7200')
-        if not 0.2 <= kp < 5:
-            raise ValueError('0.2 <= kp < 5')
+        if not spmin <= setpoint < spmax:
+            raise ValueError(f'{spmin} <= setpoint < {spmax}')
+        if not 8 <= period < 12:
+            raise ValueError(f'{pmin} <= period (hours) < {pmax}')
+        if not 1 <= kp < 2.2:
+            raise ValueError(f'{kmin} <= kp < {kmax}')
 
         cam = cmdKeys['cam'].values[0]
 
-        self.actor.startLoop('xcu_%s' % cam, setpoint, period, kp)
+        self.actor.startLoop('xcu_%s' % cam, setpoint, period * 3600, kp)
         self.actor.status(cmd)
 
         cmd.finish('text="Detector %s temperature control loop On"' % cam)
