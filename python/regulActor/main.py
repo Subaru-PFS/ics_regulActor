@@ -8,10 +8,9 @@ class RegulActor(Actor):
     def __init__(self, name, productName=None, configFile=None, debugLevel=30):
         # This sets up the connections to/from the hub, the logger, and the twisted reactor.
         #
-        cams = ['b1', 'r1']
         Actor.__init__(self, name,
                        productName=productName,
-                       configFile=configFile, modelNames=['xcu_%s' % cam for cam in cams])
+                       configFile=configFile)
 
         self.threads = {}
 
@@ -19,7 +18,7 @@ class RegulActor(Actor):
         try:
             self.threads[xcuActor].stopLoop()
         except KeyError:
-            pass
+            self.addModels([xcuActor])
 
         self.threads[xcuActor] = TempLoop(self, xcuActor, setpoint, period, kp)
 
