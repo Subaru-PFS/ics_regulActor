@@ -75,7 +75,7 @@ class TempLoop(QThread):
         return self.getOneValue(df, col='val1_0', nbSec=nbSec, method=method)
 
     def getData(self, table, cols, nbSec):
-        db = DatabaseManager('tron', 5432, '')
+        db = DatabaseManager()
         db.init()
         tai = date2astro(dt.utcnow())
         where = 'WHERE (tai >= %f and tai < %f)' % (tai - nbSec, tai)
