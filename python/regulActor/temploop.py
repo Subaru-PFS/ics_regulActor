@@ -26,11 +26,6 @@ class TempLoop(QThread):
     def elapsedTime(self):
         return time.time() - self.t0
 
-    @property
-    def cam(self):
-        __, cam = self.name.split('_')
-        return cam
-
     def startLoop(self, setpoint, period, kp):
         self.setpoint = setpoint
         self.period = period
@@ -42,9 +37,13 @@ class TempLoop(QThread):
 
     def manageLoop(self):
         xcuKeys = self.actor.models[self.name]
-        [setpoint, reject, tip, power] = xcuKeys.keyVarDict['coolerTemps'].getValue()
+        try:
+            [setpoint, reject, tip, power] = xcuKeys.keyVarDict['coolerTemps'].getValue()
+        except ValueError:
+            power = None
 
-        if power < 70:
+        if power is None or power < 70:
+            self.actor.bcast.warn(f'text="Cooler power : {power}, turning control loop OFF')
             self.stopLoop()
 
         if self.exitASAP:
@@ -67,11 +66,6 @@ class TempLoop(QThread):
         return '%s,%s,%.2f,%.2f,%.2f,%.2f' % (self.name, self.loopOn, self.setpoint,
                                               self.kp, self.period, self.elapsedTime)
 
-    def ccdTemps(self, nbSec=1800, method=np.median):
-        df = self.getData('ccd_%s__ccdtemps' % self.cam, 'ccd0,ccd1', nbSec=nbSec)
-        df['ccd'] = (df['ccd0'] + df['ccd1']) / 2
-        return self.getOneValue(df, col='ccd', nbSec=nbSec, method=method)
-
     def coolerTip(self, nbSec=1800, method=np.median):
         df = self.getData('%s__coolertemps' % self.name, 'tip', nbSec=nbSec)
         return self.getOneValue(df, col='tip', nbSec=nbSec, method=method)
@@ -90,7 +84,8 @@ class TempLoop(QThread):
         return db.pfsdata(table, cols, where=where, order=order)
 
     def getOneValue(self, df, col, nbSec, method):
-        fdf = df.dropna().query('50<%s<300' % col)
+        vmin, vmax = 50, 300
+        fdf = df.dropna().query(f'{vmin}<{col}<{vmax}')
 
         if len(fdf) < (nbSec / 60):
             self.stopLoop()
