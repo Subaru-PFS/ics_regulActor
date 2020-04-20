@@ -76,7 +76,6 @@ class TempLoop(QThread):
 
     def getData(self, table, cols, nbSec):
         db = DatabaseManager()
-        db.init()
         tai = date2astro(dt.utcnow())
         where = 'WHERE (tai >= %f and tai < %f)' % (tai - nbSec, tai)
         order = 'order by raw_id asc'

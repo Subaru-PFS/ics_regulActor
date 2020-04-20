@@ -24,9 +24,9 @@ class RegulCmd(object):
 
         # Define typed command arguments for the above commands.
         self.keys = keys.KeysDictionary('regul_regul', (1, 1),
-                                        keys.Key('setpoint', types.Float(), help='Detector temperature setpoint'),
-                                        keys.Key('period', types.Float(), help='control loop period (hours)'),
-                                        keys.Key('kp', types.Float(), help='control loop coefficient'),
+                                        keys.Key('setpoint', types.Float(), help='Detector box temperature setpoint'),
+                                        keys.Key('period', types.Float(), help='control loop period (hours), default=8'),
+                                        keys.Key('kp', types.Float(), help='control loop coefficient, default=1.1'),
                                         keys.Key('cam', types.String(), help='single camera to regulate'),
                                         )
 
@@ -41,6 +41,7 @@ class RegulCmd(object):
         cmd.finish()
 
     def startLoop(self, cmd):
+        """Start detector box temperature control loop."""
         spmin, spmax = 150, 170
         pmin, pmax = 8, 12
         kmin, kmax = 1, 2
@@ -64,6 +65,7 @@ class RegulCmd(object):
         cmd.finish('text="Detector %s temperature control loop On"' % cam)
 
     def stopLoop(self, cmd):
+        """Stop detector box temperature control loop."""
         cmdKeys = cmd.cmd.keywords
         cam = cmdKeys['cam'].values[0]
         self.actor.stopLoop('xcu_%s' % cam)
