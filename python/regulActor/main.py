@@ -12,22 +12,23 @@ class RegulActor(Actor):
                        productName=productName,
                        configFile=configFile)
 
-        self.threads = {}
+        self.loops = {}
 
     def startLoop(self, xcuActor, setpoint, period, kp):
         try:
-            self.threads[xcuActor].stopLoop()
+            self.loops[xcuActor].stop()
         except KeyError:
-            self.addModels([xcuActor])
+            pass
 
-        self.threads[xcuActor] = TempLoop(self, xcuActor, setpoint, period, kp)
+        self.loops[xcuActor] = TempLoop(self, xcuActor, setpoint, period, kp)
+        self.loops[xcuActor].start()
 
     def stopLoop(self, xcuActor):
-        self.threads[xcuActor].stopLoop()
-        self.threads.pop(xcuActor, None)
+        self.loops[xcuActor].stop()
+        self.loops.pop(xcuActor, None)
 
     def status(self, cmd):
-        for i, (xcuActor, looptemp) in enumerate(self.threads.items()):
+        for i, (xcuActor, looptemp) in enumerate(self.loops.items()):
             cmd.inform('loopTemp%i=%s' % (i, looptemp.getStatus()))
 
     def safeCall(self, **kwargs):

@@ -13,29 +13,27 @@ class TempLoop(QThread):
         self.setpoint = setpoint
         self.period = period
         self.kp = kp
-
-        self.t0 = 0
-        self.handleTimeout = self.manageLoop
-        self.start()
-
-    @property
-    def loopOn(self):
-        return not self.exitASAP
+        self.t0 = None
 
     @property
     def elapsedTime(self):
-        return time.time() - self.t0
+        try:
+            delta = time.time() - self.t0
+        except TypeError:
+            delta = 0
 
-    def startLoop(self, setpoint, period, kp):
-        self.setpoint = setpoint
-        self.period = period
-        self.kp = kp
-        self.regulate()
+        return round(delta)
 
-    def stopLoop(self):
-        self.exitASAP = True
+    def start(self):
+        self.actor.addModels([self.name])
+        self.regulate(doRaise=True)
+        QThread.start(self)
 
-    def manageLoop(self):
+    def stop(self):
+        self.t0 = None
+        self.exit()
+
+    def handleTimeout(self):
         xcuKeys = self.actor.models[self.name]
         try:
             [setpoint, reject, tip, power] = xcuKeys.keyVarDict['coolerTemps'].getValue()
@@ -44,7 +42,7 @@ class TempLoop(QThread):
 
         if power is None or power < 70:
             self.actor.bcast.warn(f'text="Cooler power : {power}, turning control loop OFF')
-            self.stopLoop()
+            self.stop()
 
         if self.exitASAP:
             raise SystemExit()
@@ -52,7 +50,7 @@ class TempLoop(QThread):
         if self.elapsedTime > self.period:
             self.regulate()
 
-    def regulate(self):
+    def regulate(self, doRaise=False):
         try:
             detector = self.detectorBox()
             tip = self.coolerTip()
@@ -60,21 +58,22 @@ class TempLoop(QThread):
             self.actor.safeCall(actor=self.name, cmdStr='cooler on setpoint=%.2f' % new_tip, timeLim=60)
             self.t0 = time.time()
         except Exception as e:
-            self.actor.bcast.warn('text=%s' % self.actor.strTraceback(e))
+            if doRaise:
+                raise
+            else:
+                self.actor.bcast.warn('text=%s' % self.actor.strTraceback(e))
 
     def getStatus(self):
-        return '%s,%s,%.2f,%.2f,%.2f,%.2f' % (self.name, self.loopOn, self.setpoint,
-                                              self.kp, self.period, self.elapsedTime)
+        return f'{self.name},{self.isAlive()},{self.setpoint},{self.kp},{self.period},{self.elapsedTime}'
 
-    def coolerTip(self, nbSec=1800, method=np.median):
-        df = self.getData('%s__coolertemps' % self.name, 'tip', nbSec=nbSec)
-        return self.getOneValue(df, col='tip', nbSec=nbSec, method=method)
+    def coolerTip(self):
+        return self.getValue(f'{self.name}__coolertemps', 'tip')
 
-    def detectorBox(self, nbSec=1800, method=np.median):
-        df = self.getData('%s__temps' % self.name, 'val1_0', nbSec=nbSec)
-        return self.getOneValue(df, col='val1_0', nbSec=nbSec, method=method)
+    def detectorBox(self):
+        return self.getValue(f'{self.name}__temps', 'val1_0')
 
-    def getData(self, table, cols, nbSec):
+    def extractData(self, table, cols, nbSec=None):
+        nbSec = self.period / 2 if nbSec is None else nbSec
         db = DatabaseManager()
         tai = date2astro(dt.utcnow())
         where = 'WHERE (tai >= %f and tai < %f)' % (tai - nbSec, tai)
@@ -82,12 +81,12 @@ class TempLoop(QThread):
         db.close()
         return db.pfsdata(table, cols, where=where, order=order)
 
-    def getOneValue(self, df, col, nbSec, method):
-        vmin, vmax = 50, 300
-        fdf = df.dropna().query(f'{vmin}<{col}<{vmax}')
+    def getValue(self, table, col, samplingTime=None, method=np.median, doFilter=True, vmin=70, vmax=200):
+        df = self.extractData(table, col, samplingTime)
+        fdf = df.dropna().query(f'{vmin}<{col}<{vmax}') if doFilter else df
 
-        if len(fdf) < (nbSec / 60):
-            self.stopLoop()
-            raise ValueError('No Data')
+        if len(fdf) < 10:
+            self.stop()
+            raise ValueError(f'{table}({col}) data contain only {len(fdf)} samples, stopping control loop ...')
 
         return method(fdf[col])
