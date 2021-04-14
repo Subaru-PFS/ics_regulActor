@@ -1,5 +1,6 @@
 import time
 from datetime import datetime as dt
+from datetime import timedelta
 
 import numpy as np
 from actorcore.QThread import QThread
@@ -75,11 +76,11 @@ class TempLoop(QThread):
     def extractData(self, table, cols, nbSec=None):
         nbSec = self.period / 2 if nbSec is None else nbSec
         db = DatabaseManager()
-        tai = date2astro(dt.utcnow())
-        where = 'WHERE (tai >= %f and tai < %f)' % (tai - nbSec, tai)
-        order = 'order by raw_id asc'
+        now = dt.utcnow()
+        past = now - timedelta(seconds=nbSec)
+        df = db.dataBetween(table, cols, start=past.isoformat())
         db.close()
-        return db.pfsdata(table, cols, where=where, order=order)
+        return df
 
     def getValue(self, table, col, samplingTime=None, method=np.median, doFilter=True, vmin=70, vmax=200):
         df = self.extractData(table, col, samplingTime)
